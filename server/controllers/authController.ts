@@ -10,8 +10,7 @@ import jwt, { Secret } from "jsonwebtoken";
 import sendMail from "../utils/sendMail";
 require("dotenv").config();
 
-
-//Create signup/register function 
+//Create signup/register function
 interface RegistrationBody {
   name: string;
   email: string;
@@ -53,36 +52,42 @@ const registerUser = CatchAsyncError(
           activation: activationToken.token,
         });
       } catch (error: any) {
+        console.error(error);
         return next(new ErrorHandler(error.message, 400));
       }
 
       // res.status(200).json(success: true, data: user, onmessage: "Successfully registered User!")
     } catch (error: any) {
+      console.error(error);
       return next(new ErrorHandler(error.message, 400));
     }
   }
 );
 
-
 //Create token
 interface ActivationToken {
   token: string;
   activationCode: string;
+  exp: number;
 }
 export const createActivationToken = (user: any): ActivationToken => {
   const activationCode = Math.floor(1000 + Math.random() * 9000).toString();
+  const expiresInMinutes = 10;
+
+  const exp = Math.floor(Date.now() / 1000) + expiresInMinutes * 60;
 
   const token = jwt.sign(
     {
       user,
       activationCode,
+      exp,
     },
     process.env.ACTIVATION_SECRET as Secret,
-    {
-      expiresIn: "10m",
-    }
+    // {
+    //   expiresIn: expiresInMinutes * 60,
+    // }
   );
-  return { token, activationCode };
+  return { token, activationCode, exp };
 };
 
 //Activate User
@@ -97,22 +102,40 @@ const activateUser = CatchAsyncError(
       const { activation_token, activation_code } =
         req.body as ActivationRequest;
 
-      const newUser: { user: User; activationCode: string } = jwt.verify(
+      const newUser: {
+        exp: number;
+        user: User;
+        activationCode: string;
+      } = jwt.verify(
         activation_token,
         process.env.ACTIVATION_SECRET as string
-      ) as { user: User; activationCode: string };
+      ) as { user: User; activationCode: string; exp: number };
+      console.log(newUser);
+      const now = Math.floor(Date.now() / 1000);
+
+      if (newUser.exp < now) {
+        return next(new ErrorHandler("Token has expired", 400));
+      }
+
       if (newUser.activationCode !== activation_code) {
         return next(new ErrorHandler("Invalid activation code", 400));
       }
-      const { name, email, password } = newUser.user
+      const { name, email, password } = newUser.user;
       //is user in our database or not
-      const existUser = await UserModel.findOne({ email })
-      if(existUser) {
-        return next(new ErrorHandler("Email already exist Try another email", 400));
+      const existUser = await UserModel.findOne({ email });
+      if (existUser) {
+        return next(
+          new ErrorHandler("Email already exist Try another email", 400)
+        );
       }
-      const user = await UserModel.create({name, email, password})
-      res.status(201).json({success: true, data: user, message: "User Activation was successful"})
+      const user = await UserModel.create({ name, email, password });
+      res.status(201).json({
+        success: true,
+        data: user,
+        message: "User Activation was successful",
+      });
     } catch (error: any) {
+      console.error(error.message);
       return next(new ErrorHandler(error.message, 400));
     }
   }
