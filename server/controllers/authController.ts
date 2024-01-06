@@ -141,4 +141,6 @@ const activateUser = CatchAsyncError(
   }
 );
 
+
+
 export { registerUser, activateUser };

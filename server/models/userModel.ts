@@ -1,6 +1,7 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 import { z, ZodError } from "zod";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken"
 
 const emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -16,6 +17,8 @@ export interface User extends Document {
   isVerified: boolean;
   courses: Array<{ courseId: string }>;
   comparedPassword: (password: string) => Promise<boolean>;
+  SignAccessToken: () => string;
+  SignRefreshToken: () => string;
 }
 
 // Define Zod schema for user input validation
@@ -103,8 +106,23 @@ userSchema.pre<User>("save", async function (next) {
   }
 });
 
+
+// sign access token
+userSchema.methods.SignAccessToken = function () {
+  return jwt.sign({ id: this._id }, process.env.ACCESS_TOKEN || "", {
+    expiresIn: "5m",
+  });
+};
+
+// sign refresh token
+userSchema.methods.SignRefreshToken = function () {
+  return jwt.sign({ id: this._id }, process.env.REFRESH_TOKEN || "", {
+    expiresIn: "3d",
+  });
+};
+
 // Method to compare passwords using bcrypt
-userSchema.methods.comparedPassword = async function (password: string) {
+userSchema.methods.comparedPassword = async function (password: string): Promise<boolean> {
   return await bcrypt.compare(password, this.password);
 };
 
