@@ -16,7 +16,7 @@ export interface User extends Document {
   role: string;
   isVerified: boolean;
   courses: Array<{ courseId: string }>;
-  comparedPassword: (password: string) => Promise<boolean>;
+  comparePassword: (password: string) => Promise<boolean>;
   SignAccessToken: () => string;
   SignRefreshToken: () => string;
 }
@@ -122,7 +122,7 @@ userSchema.methods.SignRefreshToken = function () {
 };
 
 // Method to compare passwords using bcrypt
-userSchema.methods.comparedPassword = async function (password: string): Promise<boolean> {
+userSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
   return await bcrypt.compare(password, this.password);
 };
 

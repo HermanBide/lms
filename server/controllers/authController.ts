@@ -8,6 +8,11 @@ import ejs from "ejs";
 import { createTextSpanFromBounds } from "typescript";
 import jwt, { Secret } from "jsonwebtoken";
 import sendMail from "../utils/sendMail";
+import {
+  accessTokenOptions,
+  refreshTokenOptions,
+  sendToken,
+} from "../utils/jwt";
 require("dotenv").config();
 
 //Create signup/register function
@@ -141,6 +146,37 @@ const activateUser = CatchAsyncError(
   }
 );
 
+interface LoginRequest {
+  email: string;
+  password: string;
+}
 
+const loginUser = CatchAsyncError(
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, password } = req.body as LoginRequest;
+
+      if (!email || !password) {
+        return next(new ErrorHandler("Please enter email and password", 400));
+      }
+
+      const user = await UserModel.findOne({ email }).select("+password");
+
+      if (!user) {
+        return next(new ErrorHandler("Invalid email or password", 400));
+      }
+
+      const isPasswordMatch = await user.comparePassword(password);
+      if (!isPasswordMatch) {
+        return next(new ErrorHandler("Invalid email or password", 400));
+      }
+
+      sendToken(user, 200, res);
+    } catch (error: any) {
+      console.log(error)
+      return next(new ErrorHandler(error.message, 400));
+    }
+  }
+);
 
 export { registerUser, activateUser };
