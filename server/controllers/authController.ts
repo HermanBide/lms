@@ -179,4 +179,4 @@ const loginUser = CatchAsyncError(
   }
 );
 
-export { registerUser, activateUser };
+export { registerUser, activateUser, loginUser };
